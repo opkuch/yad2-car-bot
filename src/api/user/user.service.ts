@@ -3,6 +3,7 @@ import { CarPreferences } from "../../models/car.model";
 import { User } from "../../models/user.model";
 import { getCollection } from "../../services/db.service";
 import { getCarsFromYad2Api } from "../../services/yad2-car-api.service";
+import { reOrderCarDataList } from "../../services/util.service";
 
 export const userService = {
     query,
@@ -42,7 +43,8 @@ async function register(phonenumber: string, carPreferencesParams: string | null
         throw new Error('phone are required!');
     }
     try {
-        const cars = await getCarsFromYad2Api(carPreferencesParams)
+        const promisedCars = await getCarsFromYad2Api(carPreferencesParams)
+        const cars = await reOrderCarDataList(promisedCars)
         return _add(
             {
                 phonenumber,

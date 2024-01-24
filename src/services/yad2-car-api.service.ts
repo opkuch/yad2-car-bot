@@ -1,12 +1,11 @@
 import fetch from 'node-fetch'
-import { Car } from '../models/car.model'
 
-async function getCarsFromYad2Api(carPreferencesParams: string | null): Promise<Car[]> {
+async function getCarsFromYad2Api(carPreferencesParams: string | null): Promise<unknown[]> {
     try {
         const BASE_API_URL = process?.env?.YAD2_CARS_API ?? ""
-        const res = await fetch(`${BASE_API_URL}?${carPreferencesParams || ''}`)
-        const data = await res.json() as { data: { feed: { feed_items: Car[] } } }
-        return data.data.feed.feed_items.slice(3)
+        const responses = [fetch(`${BASE_API_URL}?${carPreferencesParams || ''}&Order=1&page=1`), fetch(`${BASE_API_URL}?${carPreferencesParams || ''}&Order=1&page=2`), fetch(`${BASE_API_URL}?${carPreferencesParams || ''}&Order=1&page=3`)]
+        const data = await Promise.all(responses)
+        return await Promise.all(data.map(res => res.json()))
     } catch (err) {
         throw err
     }

@@ -5,6 +5,7 @@ import { getCollection } from "./db.service";
 import twilio from 'twilio'
 import { getCarsFromYad2Api } from "./yad2-car-api.service";
 import loggerService from "./logger.service";
+import { reOrderCarDataList } from "./util.service";
 
 const client = twilio(process?.env?.TWILIO_ACCOUNT_SID, process?.env?.TWILIO_AUTH_TOKEN);
 
@@ -21,30 +22,29 @@ async function fetchAndNotify() {
     else {
       for (const user of subscribedUsers) {
         // Fetch the latest car listings from the database
-        const latestCarListings = await getCarsFromYad2Api(user?.car_preferences_params)
-
+        const latestCarListingsFromApi = await getCarsFromYad2Api(user?.car_preferences_params)
+        const latestCarListings = await reOrderCarDataList(latestCarListingsFromApi)
         // Compare preferences and check for new car listings
-        const lastNotificationTimestamp = new Date(user?.lastNotificationTimestamp || user?.createdAt).getTime();
+        const lastNotificationTimestamp = new Date(user?.last_notification_timestamp || user?.createdAt).getTime();
         const newCarListings = latestCarListings.filter((car: Car) => {
           const isNew = +new Date(car.date_added) > lastNotificationTimestamp
+          
           if (isNew && car?.feed_source === 'private') {
             return car
           }
         });
-        console.log('NEW car listing date added: ', newCarListings);
-        if (newCarListings.length) {
+        loggerService.info('NEW car listing date added: ', newCarListings);
+        if (newCarListings.length) { 
           const msgBody = `${newCarListings.length} new cars matching your preferences waiting for you to see!`
           const imgs = newCarListings.map((car: Car) => car.img_url)
           console.log('msgBody: ', msgBody);
           console.log('imgs: ', imgs);
 
           // Compare preferences and send notifications for newly added cars
-          // _sendWhatsAppMessage(user?.phonenumber, msgBody, imgs)
+          _sendWhatsAppMessage(user?.phonenumber, msgBody, imgs)
           // Save the updated user document
           const now = Date.now() + (60 * 60 * 2 * 1000)
-          console.log('new user: ', { ...user, latest_cars_listing: newCarListings, last_notification_timestamp: new Date(now).toISOString() });
-          loggerService.info(newCarListings)
-          await userService.update({ ...user, latest_cars_listing: newCarListings, last_notification_timestamp: new Date().toISOString() } as User)
+          await userService.update({ ...user, latest_cars_listing: newCarListings, last_notification_timestamp: new Date(now).toISOString() } as User)
 
         }
       }
